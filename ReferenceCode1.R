@@ -186,4 +186,252 @@ ggplot(data=us_data_agg3,
   ylab ("Earnings growth (against 1980)")
 
 
+#(a) age 25 to 65
 
+
+
+
+
+
+#(b) Male vs female
+
+data3 <- subset(data2, SEX==2 )
+
+
+weight <- data3 %>%
+  group_by(YEAR) %>% 
+  summarise(tot_year = sum(PERWT*UHRSWORK,na.rm = TRUE))
+
+us_data_agg <- data3 %>%
+  group_by(OCC1990, YEAR) %>% 
+  summarise(tot_pr = sum(PERWT*UHRSWORK,na.rm = TRUE),
+            mean_l_earnings_wt = sum(l_earnings_wt,na.rm = TRUE)/tot_pr)
+
+
+#merging weight and us_data_agg
+us_data_agg$tot_year = NA
+us_data_agg[us_data_agg$YEAR==1980,c("tot_year")] = weight[weight$YEAR==1980,2]
+us_data_agg[us_data_agg$YEAR==1990,c("tot_year")] = weight[weight$YEAR==1990,2]
+us_data_agg[us_data_agg$YEAR==2000,c("tot_year")] = weight[weight$YEAR==2000,2]
+us_data_agg[us_data_agg$YEAR==2005,c("tot_year")] = weight[weight$YEAR==2005,2]
+us_data_agg[us_data_agg$YEAR==2006,c("tot_year")] = weight[weight$YEAR==2006,2]
+us_data_agg[us_data_agg$YEAR==2007,c("tot_year")] = weight[weight$YEAR==2007,2]
+
+rm(cpi,data)
+save(us_data_agg, file = "us_data_agg.RData")
+
+
+#annual growth of earnings by 3-digit occupation and employment shares
+#mutate: it executes the transformations iteratively so that later transformations 
+#can use the columns created by earlier transformation
+
+us_data_agg <- us_data_agg %>%
+  mutate(sh_occ_pc = 100*tot_pr/tot_year)
+
+# Computing the growth
+#function ifelse: ifelse(tes,yes,no)
+us_data_agg2 <- us_data_agg %>%
+  group_by(OCC1990) %>% 
+  mutate(growth_against_80 = 
+           100*ifelse(YEAR==1980, NA, 
+                      mean_l_earnings_wt - mean_l_earnings_wt[YEAR==1980] ) ) %>% 
+  mutate(growth_against_80_anualized = 
+           100*ifelse(YEAR==1980, NA, 
+                      (growth_against_80/100+1)^(1/(YEAR-1980))-1) )
+
+
+us_data_agg2$tot_year <- NULL
+
+#creating a variable that is the share of each occupation in 1980 only
+us_data_agg2 <- us_data_agg2 %>%
+  group_by(OCC1990) %>% 
+  mutate(sh_80 = ifelse(YEAR==1980, sh_occ_pc, sh_occ_pc[YEAR==1980]) )
+
+
+us_data_agg2 <- us_data_agg2 %>%
+  group_by(OCC1990) %>% 
+  mutate(l_earnings_80 = ifelse(YEAR==1980, mean_l_earnings_wt, mean_l_earnings_wt[YEAR==1980]) )
+
+# Converting everything to numbers
+#apply(X, MARGIN, FUN, ...). Margin: for matrix, 1 indicates rows and 2 indicates columns. c(1,2) indicates both
+#X: an array, including a matrix
+#returns a vector obtained by applying a fn to margins of a matrix
+us_data_agg3 = as.data.frame(apply(us_data_agg2, 2, function(x) as.numeric(x)))
+str(us_data_agg3)
+
+
+#plotting the data and fitting a 4th order polynomial (weighted by the shares)
+#install.packages("ggplot2")
+library(ggplot2)
+
+# Ploting the data
+formula = y ~ polym(x,degree=4)
+ggplot(data=us_data_agg3, 
+       aes(x=l_earnings_80, y=growth_against_80_anualized)) + 
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, formula = formula, 
+              mapping = aes(weight = sh_80), colour = "red") +
+  xlab("Log of earnings in 1980") +
+  ylab ("Earnings growth (against 1980)")
+
+
+
+#(c) 1980-1990 vs. 1990-2000
+
+
+
+#1980-1990
+data3 <- subset(data2, (YEAR==1980 | YEAR==1990) )
+
+
+weight <- data3 %>%
+  group_by(YEAR) %>% 
+  summarise(tot_year = sum(PERWT*UHRSWORK,na.rm = TRUE))
+
+us_data_agg <- data3 %>%
+  group_by(OCC1990, YEAR) %>% 
+  summarise(tot_pr = sum(PERWT*UHRSWORK,na.rm = TRUE),
+            mean_l_earnings_wt = sum(l_earnings_wt,na.rm = TRUE)/tot_pr)
+
+
+#merging weight and us_data_agg
+us_data_agg$tot_year = NA
+us_data_agg[us_data_agg$YEAR==1980,c("tot_year")] = weight[weight$YEAR==1980,2]
+us_data_agg[us_data_agg$YEAR==1990,c("tot_year")] = weight[weight$YEAR==1990,2]
+
+rm(cpi,data)
+save(us_data_agg, file = "us_data_agg.RData")
+
+
+#annual growth of earnings by 3-digit occupation and employment shares
+#mutate: it executes the transformations iteratively so that later transformations 
+#can use the columns created by earlier transformation
+
+us_data_agg <- us_data_agg %>%
+  mutate(sh_occ_pc = 100*tot_pr/tot_year)
+
+# Computing the growth
+#function ifelse: ifelse(tes,yes,no)
+us_data_agg2 <- us_data_agg %>%
+  group_by(OCC1990) %>% 
+  mutate(growth_against_80 = 
+           100*ifelse(YEAR==1980, NA, 
+                      mean_l_earnings_wt - mean_l_earnings_wt[YEAR==1980] ) ) %>% 
+  mutate(growth_against_80_anualized = 
+           100*ifelse(YEAR==1980, NA, 
+                      (growth_against_80/100+1)^(1/(YEAR-1980))-1) )
+
+
+us_data_agg2$tot_year <- NULL
+
+#creating a variable that is the share of each occupation in 1980 only
+us_data_agg2 <- us_data_agg2 %>%
+  group_by(OCC1990) %>% 
+  mutate(sh_80 = ifelse(YEAR==1980, sh_occ_pc, sh_occ_pc[YEAR==1980]) )
+
+
+us_data_agg2 <- us_data_agg2 %>%
+  group_by(OCC1990) %>% 
+  mutate(l_earnings_80 = ifelse(YEAR==1980, mean_l_earnings_wt, mean_l_earnings_wt[YEAR==1980]) )
+
+# Converting everything to numbers
+#apply(X, MARGIN, FUN, ...). Margin: for matrix, 1 indicates rows and 2 indicates columns. c(1,2) indicates both
+#X: an array, including a matrix
+#returns a vector obtained by applying a fn to margins of a matrix
+us_data_agg3 = as.data.frame(apply(us_data_agg2, 2, function(x) as.numeric(x)))
+str(us_data_agg3)
+
+
+#plotting the data and fitting a 4th order polynomial (weighted by the shares)
+#install.packages("ggplot2")
+library(ggplot2)
+
+# Ploting the data
+formula = y ~ polym(x,degree=4)
+ggplot(data=us_data_agg3, 
+       aes(x=l_earnings_80, y=growth_against_80_anualized)) + 
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, formula = formula, 
+              mapping = aes(weight = sh_80), colour = "red") +
+  xlab("Log of earnings in 1980") +
+  ylab ("Earnings growth (1990-1980)")
+
+
+
+
+#1990-2000
+
+data3 <- subset(data2, (YEAR==1990 | YEAR==2000) )
+
+
+weight <- data3 %>%
+  group_by(YEAR) %>% 
+  summarise(tot_year = sum(PERWT*UHRSWORK,na.rm = TRUE))
+
+us_data_agg <- data3 %>%
+  group_by(OCC1990, YEAR) %>% 
+  summarise(tot_pr = sum(PERWT*UHRSWORK,na.rm = TRUE),
+            mean_l_earnings_wt = sum(l_earnings_wt,na.rm = TRUE)/tot_pr)
+
+
+#merging weight and us_data_agg
+us_data_agg$tot_year = NA
+us_data_agg[us_data_agg$YEAR==1990,c("tot_year")] = weight[weight$YEAR==1990,2]
+us_data_agg[us_data_agg$YEAR==2000,c("tot_year")] = weight[weight$YEAR==2000,2]
+
+rm(cpi,data)
+save(us_data_agg, file = "us_data_agg.RData")
+
+
+#annual growth of earnings by 3-digit occupation and employment shares
+#mutate: it executes the transformations iteratively so that later transformations 
+#can use the columns created by earlier transformation
+
+us_data_agg <- us_data_agg %>%
+  mutate(sh_occ_pc = 100*tot_pr/tot_year)
+
+# Computing the growth
+#function ifelse: ifelse(tes,yes,no)
+us_data_agg2 <- us_data_agg %>%
+  group_by(OCC1990) %>% 
+  mutate(growth_against_80 = 
+           100*ifelse(YEAR==1990, NA, 
+                      mean_l_earnings_wt - mean_l_earnings_wt[YEAR==1990] ) ) %>% 
+  mutate(growth_against_80_anualized = 
+           100*ifelse(YEAR==1990, NA, 
+                      (growth_against_80/100+1)^(1/(YEAR-1990))-1) )
+
+
+us_data_agg2$tot_year <- NULL
+
+#creating a variable that is the share of each occupation in 1980 only
+us_data_agg2 <- us_data_agg2 %>%
+  group_by(OCC1990) %>% 
+  mutate(sh_80 = ifelse(YEAR==1990, sh_occ_pc, sh_occ_pc[YEAR==1990]) )
+
+
+us_data_agg2 <- us_data_agg2 %>%
+  group_by(OCC1990) %>% 
+  mutate(l_earnings_80 = ifelse(YEAR==1990, mean_l_earnings_wt, mean_l_earnings_wt[YEAR==1990]) )
+
+# Converting everything to numbers
+#apply(X, MARGIN, FUN, ...). Margin: for matrix, 1 indicates rows and 2 indicates columns. c(1,2) indicates both
+#X: an array, including a matrix
+#returns a vector obtained by applying a fn to margins of a matrix
+us_data_agg3 = as.data.frame(apply(us_data_agg2, 2, function(x) as.numeric(x)))
+str(us_data_agg3)
+
+
+#plotting the data and fitting a 4th order polynomial (weighted by the shares)
+#install.packages("ggplot2")
+library(ggplot2)
+
+# Ploting the data
+formula = y ~ polym(x,degree=4)
+ggplot(data=us_data_agg3, 
+       aes(x=l_earnings_80, y=growth_against_80_anualized)) + 
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, formula = formula, 
+              mapping = aes(weight = sh_80), colour = "red") +
+  xlab("Log of earnings in 1990") +
+  ylab ("Earnings growth (2000-1990)")
